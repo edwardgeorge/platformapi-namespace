@@ -10,6 +10,7 @@ use types::{Error, NSDef, NSResponse};
 
 static HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
 static CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
+static TENANT_ENV_VAR: &str = "PLATFORM_API_TENANT";
 
 fn strip_prefix_if_exists<'a>(name: &'a str, prefix: &str) -> &'a str {
     if name.starts_with(&format!("{}-", prefix)) {
@@ -31,12 +32,13 @@ fn validate_ttl(inp: String) -> Result<(), String> {
 fn create(
     hostname: &str,
     cluster: &str,
+    tenant: &str,
     productkey: &str,
     name: &str,
     ttl: &str,
 ) -> Result<NSResponse, Error> {
     let client = Client::new();
-    let token = get_bearer_token(&client)?;
+    let token = get_bearer_token(&client, tenant)?;
     let url = format!("https://{}/namespace", hostname);
     let res = client
         .post(&url)
@@ -63,6 +65,7 @@ fn create(
 fn main() {
     let def_hostname = env::var(HOSTNAME_ENV_VAR);
     let def_cluster = env::var(CLUSTER_ENV_VAR);
+    let def_tenant = env::var(CLUSTER_ENV_VAR);
     let matches = App::new("Platform API Namespace Client")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
@@ -85,6 +88,7 @@ fn main() {
                 )
                 .arg(Arg::with_name("hostname").long("hostname").required(false))
                 .arg(Arg::with_name("cluster").long("cluster").required(false))
+                .arg(Arg::with_name("tenant").long("tenant").required(false))
                 .arg(Arg::with_name("productkey").required(true).index(1))
                 .arg(Arg::with_name("name").required(true).index(2)),
         )
@@ -112,7 +116,15 @@ fn main() {
                 );
                 std::process::exit(1)
             });
-        std::process::exit(match create(hostname, cluster, productkey, name, ttl) {
+        let tenant = merge_option_and_result(matches.value_of("tenant"), &def_tenant)
+            .unwrap_or_else(|e| {
+                eprintln!(
+                    "'--tenant' option missing and could not read {} env var: {}",
+                    TENANT_ENV_VAR, e
+                );
+                std::process::exit(1)
+            });
+        std::process::exit(match create(hostname, tenant, cluster, productkey, name, ttl) {
             Ok(r) => {
                 println!("{}", r);
                 0

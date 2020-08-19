@@ -23,9 +23,10 @@ fn get_oauth_creds_from_env() -> Result<OAuthCred, Error> {
     ))
 }
 
-pub fn get_bearer_token(client: &Client) -> Result<Token, Error> {
+pub fn get_bearer_token(client: &Client, tenant: &str) -> Result<Token, Error> {
+    let url = format!("https://login.microsoftonline.com/{}/oauth2/v2.0/token", tenant);
     let res = client
-        .post("https://login.microsoftonline.com/maersk.onmicrosoft.com/oauth2/v2.0/token")
+        .post(&url)
         .form(&get_oauth_creds_from_env()?)
         .send()
         .unwrap();
