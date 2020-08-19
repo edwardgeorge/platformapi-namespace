@@ -58,19 +58,6 @@ fn create(
     }
 }
 
-fn run_create(hostname: &str, cluster: &str, productkey: &str, name: &str, ttl: &str) -> i32 {
-    match create(hostname, cluster, productkey, name, ttl) {
-        Ok(r) => {
-            println!("{}", r);
-            0
-        }
-        Err(e) => {
-            eprintln!("{}", e);
-            1
-        }
-    }
-}
-
 fn main() {
     let def_hostname = env::var(HOSTNAME_ENV_VAR);
     let def_cluster = env::var(CLUSTER_ENV_VAR);
@@ -123,7 +110,16 @@ fn main() {
                 );
                 std::process::exit(1)
             });
-        std::process::exit(run_create(hostname, cluster, productkey, name, ttl));
+        std::process::exit(match create(hostname, cluster, productkey, name, ttl) {
+            Ok(r) => {
+                println!("{}", r);
+                0
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                1
+            }
+        });
     } else {
         panic!("No subcommand");
     }
