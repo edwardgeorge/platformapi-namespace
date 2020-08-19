@@ -32,7 +32,9 @@ pub fn get_bearer_token(client: &Client) -> Result<Token, Error> {
     let s = res.status();
     let t = res.text().unwrap();
     if s.is_success() {
-        let token: Token = serde_json::from_str(&t).unwrap();
+        let token: Token = serde_json::from_str(&t).map_err(|e| {
+            Error::UnknownError(format!("Error decoding OAuth API Response: {}", e))
+        })?;
         if token.get_type() != "Bearer" {
             Err(Error::UnknownError(format!(
                 "Unknown token type: {}",

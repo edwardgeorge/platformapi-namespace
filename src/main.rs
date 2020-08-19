@@ -52,7 +52,9 @@ fn create(
     let status = res.status();
     let rtext = res.text().unwrap();
     if status.is_success() {
-        Ok(serde_json::from_str(&rtext).unwrap())
+        let resp = serde_json::from_str(&rtext)
+            .map_err(|e| Error::UnknownError(format!("Error decoding API Response: {}", e)))?;
+        Ok(resp)
     } else {
         Err(Error::APIError(status.as_u16(), rtext))
     }
