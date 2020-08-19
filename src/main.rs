@@ -107,20 +107,22 @@ fn main() {
         if crmatch.is_present("strip-prefix") {
             name = strip_prefix_if_exists(name, productkey);
         }
-        let hostname = oreo(matches.value_of("hostname"), &def_hostname).unwrap_or_else(|e| {
-            eprintln!(
-                "'--hostname' option missing and could not read {} env var: {}",
-                HOSTNAME_ENV_VAR, e
-            );
-            std::process::exit(1)
-        });
-        let cluster = oreo(matches.value_of("cluster"), &def_cluster).unwrap_or_else(|e| {
-            eprintln!(
-                "'--cluster' option missing and could not read {} env var: {}",
-                CLUSTER_ENV_VAR, e
-            );
-            std::process::exit(1)
-        });
+        let hostname = merge_option_and_result(matches.value_of("hostname"), &def_hostname)
+            .unwrap_or_else(|e| {
+                eprintln!(
+                    "'--hostname' option missing and could not read {} env var: {}",
+                    HOSTNAME_ENV_VAR, e
+                );
+                std::process::exit(1)
+            });
+        let cluster = merge_option_and_result(matches.value_of("cluster"), &def_cluster)
+            .unwrap_or_else(|e| {
+                eprintln!(
+                    "'--cluster' option missing and could not read {} env var: {}",
+                    CLUSTER_ENV_VAR, e
+                );
+                std::process::exit(1)
+            });
         std::process::exit(run_create(hostname, cluster, productkey, name, ttl));
     } else {
         panic!("No subcommand");
@@ -128,7 +130,17 @@ fn main() {
 }
 
 // apologies for this function,
-// this is for missing options which should be taken from the environment
-fn oreo<'a, E>(a: Option<&'a str>, b: &'a Result<String, E>) -> Result<&'a str, &'a E> {
-    a.ok_or(()).or(b.as_ref().map(|v| v.as_ref()))
+// this is for missing options which should be taken from the environment,
+// it munges the types into the correct ones
+fn merge_option_and_result<'a, E>(
+    a: Option<&'a str>,
+    b: &'a Result<String, E>,
+) -> Result<&'a str, &'a E> {
+    match a {
+        Some(v) => Ok(v),
+        None => match b {
+            Ok(ref v) => Ok(v),
+            Err(e) => Err(e),
+        },
+    }
 }
