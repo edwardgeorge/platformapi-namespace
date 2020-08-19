@@ -48,11 +48,23 @@ impl fmt::Display for NSResponse {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct OAuthCred {
-    pub scope: String,
-    pub client_id: String,
-    pub client_secret: String,
+    scope: String,
+    client_id: String,
+    client_secret: String,
+    grant_type: String,
+}
+
+impl OAuthCred {
+    pub fn new(scope: String, client_id: String, client_secret: String) -> Self {
+        OAuthCred {
+            scope: scope,
+            client_id: client_id,
+            client_secret: client_secret,
+            grant_type: String::from("client_credentials"),
+        }
+    }
 }
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 use reqwest::blocking::Client;
-use reqwest::header::CONTENT_TYPE;
 use std::env;
+use urlencoding::decode;
 
 use crate::types::{Error, OAuthCred, Token};
 
@@ -11,22 +11,22 @@ fn get_env_var(name: &str) -> Result<String, Error> {
 }
 
 fn get_oauth_creds_from_env() -> Result<OAuthCred, Error> {
-    Ok(OAuthCred {
-        scope: get_env_var("SCOPE")?,
-        client_id: get_env_var("CLIENT_ID")?,
-        client_secret: get_env_var("CLIENT_SECRET")?,
-    })
+    let mut scope = get_env_var("SCOPE")?;
+    // hack to deal with already urlencoded data so that it isn't encoded twice...
+    if (&scope).contains("%3A%2F%2F") {
+        scope = decode(&scope).map_err(|e| Error::UnknownError(e.to_string()))?;
+    }
+    Ok(OAuthCred::new(
+        scope,
+        get_env_var("CLIENT_ID")?,
+        get_env_var("CLIENT_SECRET")?,
+    ))
 }
 
 pub fn get_bearer_token(client: &Client) -> Result<Token, Error> {
-    let cred = get_oauth_creds_from_env()?;
     let res = client
         .post("https://login.microsoftonline.com/maersk.onmicrosoft.com/oauth2/v2.0/token")
-        .body(format!(
-            "client_id={}&scope={}&client_secret={}&grant_type=client_credentials",
-            cred.client_id, cred.scope, cred.client_secret
-        ))
-        .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+        .form(&get_oauth_creds_from_env()?)
         .send()
         .unwrap();
     let s = res.status();
