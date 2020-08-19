@@ -1,6 +1,6 @@
 use clap::{App, AppSettings, Arg, SubCommand};
-use reqwest::blocking::Client;
 use regex::Regex;
+use reqwest::blocking::Client;
 use std::env;
 
 pub mod auth;
@@ -28,7 +28,13 @@ fn validate_ttl(inp: String) -> Result<(), String> {
     }
 }
 
-fn create(hostname: &str, cluster: &str, productkey: &str, name: &str, ttl: &str) -> Result<NSResponse, Error> {
+fn create(
+    hostname: &str,
+    cluster: &str,
+    productkey: &str,
+    name: &str,
+    ttl: &str,
+) -> Result<NSResponse, Error> {
     let client = Client::new();
     let token = get_bearer_token(&client)?;
     let url = format!("https://{}/namespace", hostname);
@@ -57,7 +63,7 @@ fn run_create(hostname: &str, cluster: &str, productkey: &str, name: &str, ttl: 
         Ok(r) => {
             println!("{}", r);
             0
-        },
+        }
         Err(e) => {
             eprintln!("{}", e);
             1
@@ -102,11 +108,17 @@ fn main() {
             name = strip_prefix_if_exists(name, productkey);
         }
         let hostname = oreo(matches.value_of("hostname"), &def_hostname).unwrap_or_else(|e| {
-            eprintln!("'--hostname' option missing and could not read {} env var: {}", HOSTNAME_ENV_VAR, e);
+            eprintln!(
+                "'--hostname' option missing and could not read {} env var: {}",
+                HOSTNAME_ENV_VAR, e
+            );
             std::process::exit(1)
         });
         let cluster = oreo(matches.value_of("cluster"), &def_cluster).unwrap_or_else(|e| {
-            eprintln!("'--cluster' option missing and could not read {} env var: {}", CLUSTER_ENV_VAR, e);
+            eprintln!(
+                "'--cluster' option missing and could not read {} env var: {}",
+                CLUSTER_ENV_VAR, e
+            );
             std::process::exit(1)
         });
         std::process::exit(run_create(hostname, cluster, productkey, name, ttl));
