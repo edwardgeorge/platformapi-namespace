@@ -9,6 +9,7 @@ use auth::get_bearer_token;
 use types::{Error, NSDef, NSResponse};
 
 static HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
+static CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
 
 fn strip_prefix_if_exists<'a>(name: &'a str, prefix: &str) -> &'a str {
     if name.starts_with(&format!("{}-", prefix)) {
@@ -27,7 +28,7 @@ fn validate_ttl(inp: String) -> Result<(), String> {
     }
 }
 
-fn create(hostname: &str, productkey: &str, name: &str, ttl: &str) -> Result<NSResponse, Error> {
+fn create(hostname: &str, cluster: &str, productkey: &str, name: &str, ttl: &str) -> Result<NSResponse, Error> {
     let client = Client::new();
     let token = get_bearer_token(&client)?;
     if token.get_type() != "Bearer" {
@@ -37,16 +38,15 @@ fn create(hostname: &str, productkey: &str, name: &str, ttl: &str) -> Result<NSR
         )));
     }
     let url = format!("https://{}/namespace", hostname);
-    let data = NSDef {
-        productkey,
-        ttl: ttl,
-        cluster: "core-dev-west-1",
-        namespace: name,
-    };
     let res = client
         .post(&url)
         .bearer_auth(token)
-        .json(&data)
+        .json(&NSDef {
+            productkey,
+            ttl: ttl,
+            cluster: cluster,
+            namespace: name,
+        })
         .send()
         .unwrap();
     let status = res.status();
@@ -58,22 +58,8 @@ fn create(hostname: &str, productkey: &str, name: &str, ttl: &str) -> Result<NSR
     }
 }
 
-fn run_create(hostname: Option<&str>, productkey: &str, name: &str, ttl: &str) -> i32 {
-    let hn_from_env = env::var(HOSTNAME_ENV_VAR);
-    let hn_unwrapped = match hostname {
-        Some(h) => h,
-        None => match hn_from_env {
-            Ok(ref h) => h,
-            Err(e) => {
-                eprintln!(
-                    "No hostname provided and env var {} could not be read: {}",
-                    HOSTNAME_ENV_VAR, e
-                );
-                return 1;
-            }
-        },
-    };
-    match create(hn_unwrapped, productkey, name, ttl) {
+fn run_create(hostname: &str, cluster: &str, productkey: &str, name: &str, ttl: &str) -> i32 {
+    match create(hostname, cluster, productkey, name, ttl) {
         Ok(r) => {
             println!("{}", r);
             0
@@ -86,6 +72,8 @@ fn run_create(hostname: Option<&str>, productkey: &str, name: &str, ttl: &str) -
 }
 
 fn main() {
+    let def_hostname = env::var(HOSTNAME_ENV_VAR);
+    let def_cluster = env::var(CLUSTER_ENV_VAR);
     let matches = App::new("Platform API Namespace Client")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
@@ -107,6 +95,7 @@ fn main() {
                         .required(false),
                 )
                 .arg(Arg::with_name("hostname").long("hostname").required(false))
+                .arg(Arg::with_name("cluster").long("cluster").required(false))
                 .arg(Arg::with_name("productkey").required(true).index(1))
                 .arg(Arg::with_name("name").required(true).index(2)),
         )
@@ -115,12 +104,25 @@ fn main() {
         let productkey = crmatch.value_of("productkey").unwrap();
         let mut name = crmatch.value_of("name").unwrap();
         let ttl = crmatch.value_of("ttl").unwrap();
-        let hostname = crmatch.value_of("hostname");
         if crmatch.is_present("strip-prefix") {
             name = strip_prefix_if_exists(name, productkey);
         }
-        std::process::exit(run_create(hostname, productkey, name, ttl));
+        let hostname = oreo(matches.value_of("hostname"), &def_hostname).unwrap_or_else(|e| {
+            eprintln!("'--hostname' option missing and could not read {} env var: {}", HOSTNAME_ENV_VAR, e);
+            std::process::exit(1)
+        });
+        let cluster = oreo(matches.value_of("cluster"), &def_cluster).unwrap_or_else(|e| {
+            eprintln!("'--cluster' option missing and could not read {} env var: {}", CLUSTER_ENV_VAR, e);
+            std::process::exit(1)
+        });
+        std::process::exit(run_create(hostname, cluster, productkey, name, ttl));
     } else {
         panic!("No subcommand");
     }
+}
+
+// apologies for this function,
+// this is for missing options which should be taken from the environment
+fn oreo<'a, E>(a: Option<&'a str>, b: &'a Result<String, E>) -> Result<&'a str, &'a E> {
+    a.ok_or(()).or(b.as_ref().map(|v| v.as_ref()))
 }
