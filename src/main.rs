@@ -1,5 +1,6 @@
 use clap::{App, AppSettings, Arg, SubCommand};
 use reqwest::blocking::Client;
+use regex::Regex;
 use std::env;
 
 pub mod auth;
@@ -14,6 +15,15 @@ fn strip_prefix_if_exists<'a>(name: &'a str, prefix: &str) -> &'a str {
         &name[prefix.len() + 1..]
     } else {
         name
+    }
+}
+
+fn validate_ttl(inp: String) -> Result<(), String> {
+    let re = Regex::new(r"^(1([hd]|[0-9]h)|2([hd]|[0-4]h)|[3-7][hd]|[89]h)$").unwrap();
+    if re.is_match(&inp) {
+        Ok(())
+    } else {
+        Err(String::from("Valid TTLs are 1-24h or 1-7d"))
     }
 }
 
@@ -84,6 +94,7 @@ fn main() {
                 .arg(
                     Arg::with_name("ttl")
                         .long("ttl")
+                        .validator(validate_ttl)
                         .default_value("24h")
                         .takes_value(true)
                         .required(false),
