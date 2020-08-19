@@ -9,6 +9,14 @@ use types::{Error, NSDef, NSResponse};
 
 static HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
 
+fn strip_prefix_if_exists<'a>(name: &'a str, prefix: &str) -> &'a str {
+    if name.starts_with(&format!("{}-", prefix)) {
+        &name[prefix.len() + 1..]
+    } else {
+        name
+    }
+}
+
 fn create(hostname: &str, productkey: &str, name: &str, ttl: &str) -> Result<NSResponse, Error> {
     let client = Client::new();
     let token = get_bearer_token(&client)?;
@@ -91,6 +99,14 @@ fn main() {
                     Arg::with_name("ttl")
                         .long("ttl")
                         .default_value("24h")
+                        .takes_value(true)
+                        .required(false),
+                )
+                .arg(
+                    Arg::with_name("strip-prefix")
+                        .long("strip-prefix")
+                        .short("s")
+                        .takes_value(false)
                         .required(false),
                 )
                 .arg(Arg::with_name("hostname").long("hostname").required(false))
@@ -100,9 +116,12 @@ fn main() {
         .get_matches();
     if let Some(crmatch) = matches.subcommand_matches("create") {
         let productkey = crmatch.value_of("productkey").unwrap();
-        let name = crmatch.value_of("name").unwrap();
+        let mut name = crmatch.value_of("name").unwrap();
         let ttl = crmatch.value_of("ttl").unwrap();
         let hostname = crmatch.value_of("hostname");
+        if crmatch.is_present("strip-prefix") {
+            name = strip_prefix_if_exists(name, productkey);
+        }
         std::process::exit(run_create(hostname, productkey, name, ttl));
     } else {
         panic!("No subcommand");
