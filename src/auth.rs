@@ -32,8 +32,15 @@ pub fn get_bearer_token(client: &Client) -> Result<Token, Error> {
     let s = res.status();
     let t = res.text().unwrap();
     if s.is_success() {
-        let x: Token = serde_json::from_str(&t).unwrap();
-        Ok(x)
+        let token: Token = serde_json::from_str(&t).unwrap();
+        if token.get_type() != "Bearer" {
+            Err(Error::UnknownError(format!(
+                "Unknown token type: {}",
+                token.get_type()
+            )))
+        } else {
+            Ok(token)
+        }
     } else {
         // panic!("Received a {} status code from the oauth api");
         Err(Error::OAuthError(s.as_u16(), t))

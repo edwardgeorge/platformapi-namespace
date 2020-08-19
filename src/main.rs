@@ -31,12 +31,6 @@ fn validate_ttl(inp: String) -> Result<(), String> {
 fn create(hostname: &str, cluster: &str, productkey: &str, name: &str, ttl: &str) -> Result<NSResponse, Error> {
     let client = Client::new();
     let token = get_bearer_token(&client)?;
-    if token.get_type() != "Bearer" {
-        return Err(Error::UnknownError(format!(
-            "Unknown token type: {}",
-            token.get_type()
-        )));
-    }
     let url = format!("https://{}/namespace", hostname);
     let res = client
         .post(&url)
