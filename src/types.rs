@@ -62,3 +62,15 @@ pub enum Error {
     APIError(u16, String),
     UnknownError(String),
 }
+
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::EnvironmentError(ref s) => write!(f, "Environment Error: {}", s),
+            Error::OAuthError(ref s, ref m) => write!(f, "Error from OAuth API, status code: {}\n{}", s, m),
+            Error::APIError(ref s, ref m) => write!(f, "Error from Platform API, status code: {}\n{}", s, m),
+            Error::UnknownError(ref m) => write!(f, "{}", m),
+        }
+    }
+}

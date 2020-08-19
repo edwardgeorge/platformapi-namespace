@@ -67,25 +67,11 @@ fn run_create(hostname: Option<&str>, productkey: &str, name: &str, ttl: &str) -
         Ok(r) => {
             println!("{}", r);
             0
-        }
-        Err(e) => match e {
-            Error::EnvironmentError(s) => {
-                eprintln!("Environment Error: {}", s);
-                1
-            }
-            Error::OAuthError(s, m) => {
-                eprintln!("Error from OAuth API, status code: {}\n{}", s, m);
-                2
-            }
-            Error::APIError(s, m) => {
-                eprintln!("Error from Platform API, status code: {}\n{}", s, m);
-                3
-            }
-            Error::UnknownError(m) => {
-                eprintln!("{}", m);
-                4
-            }
         },
+        Err(e) => {
+            eprintln!("{}", e);
+            1
+        }
     }
 }
 
