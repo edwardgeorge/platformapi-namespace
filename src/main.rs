@@ -65,7 +65,7 @@ fn create(
 fn main() {
     let def_hostname = env::var(HOSTNAME_ENV_VAR);
     let def_cluster = env::var(CLUSTER_ENV_VAR);
-    let def_tenant = env::var(CLUSTER_ENV_VAR);
+    let def_tenant = env::var(TENANT_ENV_VAR);
     let matches = App::new("Platform API Namespace Client")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(

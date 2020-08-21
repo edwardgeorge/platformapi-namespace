@@ -1,6 +1,6 @@
 [package]
 name = "platformapi-namespace"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Edward George <edwardgeorge@gamil.com>"]
 edition = "2018"
 
