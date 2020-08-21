@@ -31,8 +31,8 @@ fn validate_ttl(inp: String) -> Result<(), String> {
 
 fn create(
     hostname: &str,
-    cluster: &str,
     tenant: &str,
+    cluster: &str,
     productkey: &str,
     name: &str,
     ttl: &str,
