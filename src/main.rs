@@ -49,10 +49,21 @@ fn create(
             cluster: cluster,
             namespace: name,
         })
-        .send()
-        .unwrap();
-    let status = res.status();
-    let rtext = res.text().unwrap();
+        .send();
+    let resp = match res {
+        Ok(r) => r,
+        Err(e) => {
+            if e.is_timeout() {
+                return Err(Error::APITimeoutError);
+            } else {
+                return Err(Error::UnknownError(
+                    "Got an unknown communicating with the Platform API".to_owned(),
+                ));
+            }
+        }
+    };
+    let status = resp.status();
+    let rtext = resp.text().unwrap();
     if status.is_success() {
         let resp = serde_json::from_str(&rtext)
             .map_err(|e| Error::UnknownError(format!("Error decoding API Response: {}", e)))?;
@@ -124,16 +135,18 @@ fn main() {
                 );
                 std::process::exit(1)
             });
-        std::process::exit(match create(hostname, tenant, cluster, productkey, name, ttl) {
-            Ok(r) => {
-                println!("{}", r);
-                0
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                1
-            }
-        });
+        std::process::exit(
+            match create(hostname, tenant, cluster, productkey, name, ttl) {
+                Ok(r) => {
+                    println!("{}", r);
+                    0
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    1
+                }
+            },
+        );
     } else {
         panic!("No subcommand");
     }

@@ -75,6 +75,8 @@ pub enum Error {
     OAuthError(u16, String),
     #[error("Error from Platform API, status code: {0}\n{1}")]
     APIError(u16, String),
+    #[error("Timeout calling PlatformAPI")]
+    APITimeoutError,
     #[error("{0}")]
     UnknownError(String),
 }
