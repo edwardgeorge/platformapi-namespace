@@ -59,9 +59,9 @@ pub struct OAuthCred {
 impl OAuthCred {
     pub fn new(scope: String, client_id: String, client_secret: String) -> Self {
         OAuthCred {
-            scope: scope,
-            client_id: client_id,
-            client_secret: client_secret,
+            scope,
+            client_id,
+            client_secret,
             grant_type: String::from("client_credentials"),
         }
     }
