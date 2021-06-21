@@ -8,9 +8,9 @@ pub mod types;
 use auth::get_bearer_token;
 use types::{Error, NSDef, NSResponse};
 
-static HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
-static CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
-static TENANT_ENV_VAR: &str = "PLATFORM_API_TENANT";
+const HOSTNAME_ENV_VAR: &'static str = "PLATFORM_API_HOSTNAME";
+const CLUSTER_ENV_VAR: &'static str = "PLATFORM_API_CLUSTER";
+const TENANT_ENV_VAR: &'static str = "PLATFORM_API_TENANT";
 
 fn strip_prefix_if_exists<'a>(name: &'a str, prefix: &str) -> &'a str {
     if name.starts_with(&format!("{}-", prefix)) {

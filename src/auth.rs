@@ -24,14 +24,19 @@ fn get_oauth_creds_from_env() -> Result<OAuthCred, Error> {
 }
 
 pub fn get_bearer_token(client: &Client, tenant: &str) -> Result<Token, Error> {
-    let url = format!("https://login.microsoftonline.com/{}/oauth2/v2.0/token", tenant);
+    let url = format!(
+        "https://login.microsoftonline.com/{}/oauth2/v2.0/token",
+        tenant
+    );
     let res = client
         .post(&url)
         .form(&get_oauth_creds_from_env()?)
         .send()
-        .unwrap();
+        .map_err(|e| Error::UnknownError(format!("Error from OAuth request: {}", e)))?;
     let s = res.status();
-    let t = res.text().unwrap();
+    let t = res.text().map_err(|e| {
+        Error::UnknownError(format!("Error obtaining body of OAuth response: {}", e))
+    })?;
     if s.is_success() {
         let token: Token = serde_json::from_str(&t).map_err(|e| {
             Error::UnknownError(format!("Error decoding OAuth API Response: {}", e))
