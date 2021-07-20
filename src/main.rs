@@ -1,4 +1,5 @@
 use clap::{App, AppSettings, Arg, SubCommand};
+use log::info;
 use regex::Regex;
 use reqwest::blocking::Client;
 use std::env;
@@ -40,16 +41,18 @@ fn create(
     let client = Client::new();
     let token = get_bearer_token(&client, tenant)?;
     let url = format!("https://{}/namespace", hostname);
-    let res = client
-        .post(&url)
-        .bearer_auth(token)
-        .json(&NSDef {
-            productkey,
-            ttl,
-            cluster,
-            namespace: name,
-        })
-        .send();
+    let payload = NSDef {
+        productkey,
+        ttl,
+        cluster,
+        namespace: name,
+    };
+    info!(
+        "submitting request body to {}: {}",
+        url,
+        serde_json::to_string(&payload).unwrap_or_else(|err| format!("error: {:?}", err))
+    );
+    let res = client.post(&url).bearer_auth(token).json(&payload).send();
     let resp = match res {
         Ok(r) => r,
         Err(e) => {
@@ -77,6 +80,7 @@ fn main() {
     let def_hostname = env::var(HOSTNAME_ENV_VAR);
     let def_cluster = env::var(CLUSTER_ENV_VAR);
     let def_tenant = env::var(TENANT_ENV_VAR);
+    env_logger::init();
     let matches = App::new("Platform API Namespace Client")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
