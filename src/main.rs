@@ -59,9 +59,10 @@ fn create(
             if e.is_timeout() {
                 return Err(Error::APITimeoutError);
             } else {
-                return Err(Error::UnknownError(
-                    "Got an unknown communicating with the Platform API".to_owned(),
-                ));
+                return Err(Error::UnknownError(format!(
+                    "Got an unknown error communicating with the Platform API: {}",
+                    e
+                )));
             }
         }
     };
