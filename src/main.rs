@@ -2,12 +2,15 @@ use clap::{App, AppSettings, Arg, SubCommand};
 use log::info;
 use regex::Regex;
 use reqwest::blocking::Client;
+use std::collections::HashMap;
 use std::env;
 
 pub mod auth;
+pub mod labels;
 pub mod types;
 use auth::get_bearer_token;
-use types::{Error, NSDefBuilder, NSResponse};
+use labels::labels_from_str;
+use types::{Error, Labels, NSDefBuilder, NSResponse};
 
 const HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
 const CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
@@ -37,6 +40,7 @@ fn create(
     productkey: &str,
     name: &str,
     ttl: &str,
+    labels: Labels,
 ) -> Result<NSResponse, Error> {
     let client = Client::new();
     let token = get_bearer_token(&client, tenant)?;
@@ -46,6 +50,7 @@ fn create(
         .ttl(ttl)
         .cluster(cluster)
         .namespace(name)
+        .labels(labels)
         .build()
         .unwrap();
     info!(
@@ -103,6 +108,15 @@ fn main() {
                         .takes_value(false)
                         .required(false),
                 )
+                .arg(
+                    Arg::with_name("labels")
+                        .short("l")
+                        .long("labels")
+                        .required(false)
+                        .takes_value(true)
+                        .multiple(true)
+                        .number_of_values(1),
+                )
                 .arg(Arg::with_name("hostname").long("hostname").required(false))
                 .arg(Arg::with_name("cluster").long("cluster").required(false))
                 .arg(Arg::with_name("tenant").long("tenant").required(false))
@@ -141,8 +155,23 @@ fn main() {
                 );
                 std::process::exit(1)
             });
+        // use hashmap so keys override each other
+        let mut labels = HashMap::new();
+        if let Some(vals) = crmatch.values_of("labels") {
+            for i in vals {
+                labels.extend(labels_from_str(i).drain(..));
+            }
+        }
         std::process::exit(
-            match create(hostname, tenant, cluster, productkey, name, ttl) {
+            match create(
+                hostname,
+                tenant,
+                cluster,
+                productkey,
+                name,
+                ttl,
+                labels.drain().map(|a| a.into()).collect(),
+            ) {
                 Ok(r) => {
                     println!("{}", r);
                     0

@@ -1,5 +1,6 @@
 use derive_builder::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Debug, Deserialize)]
@@ -24,13 +25,49 @@ impl fmt::Display for Token {
 }
 
 // simply used for serialising so no need to take ownership of strs
+#[derive(Clone, Debug, Serialize)]
+pub struct KeyValue {
+    key: String,
+    value: String,
+}
+
+impl Extend<KeyValue> for HashMap<String, String> {
+    fn extend<T: IntoIterator<Item = KeyValue>>(&mut self, iter: T) {
+        self.extend(iter.into_iter().map(<(String, String)>::from));
+    }
+}
+
+impl KeyValue {
+    pub fn new(key: String, value: String) -> Self {
+        KeyValue { key, value }
+    }
+}
+
+impl From<(String, String)> for KeyValue {
+    fn from(input: (String, String)) -> Self {
+        Self::new(input.0, input.1)
+    }
+}
+
+impl From<KeyValue> for (String, String) {
+    fn from(input: KeyValue) -> Self {
+        (input.key, input.value)
+    }
+}
+
+// simply used for serialising so no need to take ownership of strs
 #[derive(Debug, Serialize, Builder)]
+#[builder(setter(into))]
 pub struct NSDef<'a> {
     pub productkey: &'a str,
     pub ttl: &'a str,
     pub cluster: &'a str,
     pub namespace: &'a str,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub labels: Labels,
 }
+
+pub type Labels = Vec<KeyValue>;
 
 #[derive(Debug, Deserialize)]
 pub struct NSResponse {
