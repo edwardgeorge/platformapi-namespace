@@ -1,3 +1,4 @@
+use derive_builder::*;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -23,7 +24,7 @@ impl fmt::Display for Token {
 }
 
 // simply used for serialising so no need to take ownership of strs
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Builder)]
 pub struct NSDef<'a> {
     pub productkey: &'a str,
     pub ttl: &'a str,

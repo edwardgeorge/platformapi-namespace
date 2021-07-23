@@ -7,7 +7,7 @@ use std::env;
 pub mod auth;
 pub mod types;
 use auth::get_bearer_token;
-use types::{Error, NSDef, NSResponse};
+use types::{Error, NSDefBuilder, NSResponse};
 
 const HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
 const CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
@@ -41,12 +41,13 @@ fn create(
     let client = Client::new();
     let token = get_bearer_token(&client, tenant)?;
     let url = format!("https://{}/namespace", hostname);
-    let payload = NSDef {
-        productkey,
-        ttl,
-        cluster,
-        namespace: name,
-    };
+    let payload = NSDefBuilder::default()
+        .productkey(productkey)
+        .ttl(ttl)
+        .cluster(cluster)
+        .namespace(name)
+        .build()
+        .unwrap();
     info!(
         "submitting request body to {}: {}",
         url,
