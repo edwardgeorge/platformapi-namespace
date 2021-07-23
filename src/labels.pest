@@ -1,0 +1,27 @@
+alpha = { 'a'..'z' | 'A'..'Z' }
+digit = { '0'..'9' }
+alphanumeric = { alpha | digit }
+whitespace = _{ " " | "\t" | "\n" }
+
+dns_label_chars = { alphanumeric | "-" }
+subdomain_chars = { dns_label_chars | "." }
+
+dns_label = @{ alphanumeric ~ (
+  &(dns_label_chars ~ dns_label_chars) ~ dns_label_chars
+  | alphanumeric
+){1, 62} }
+dns_subdomain = @{ &subdomain_chars{2,255} ~ dns_label ~ ("." ~ dns_label)* }
+
+label_prefix = { dns_subdomain ~ "/" }
+label_name_inner = { alphanumeric | "-" | "_" | "." }
+label_part = @{ alphanumeric ~ (
+  &(label_name_inner ~ label_name_inner) ~ label_name_inner
+  | alphanumeric
+)* }
+
+label_key = @{ label_prefix? ~ &label_name_inner{1,63} ~ label_part }
+label_value = @{ label_part }
+label = { label_key ~ "=" ~ label_value? }
+
+label_list = _{ label ~ (whitespace+ ~ label)* }
+labels = _{ SOI ~ whitespace* ~ label_list ~ whitespace* ~ EOI}
