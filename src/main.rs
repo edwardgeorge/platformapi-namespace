@@ -73,6 +73,7 @@ fn main() {
     let def_tenant = env::var(TENANT_ENV_VAR);
     env_logger::init();
     let matches = App::new("Platform API Namespace Client")
+        .version(env!("CARGO_PKG_VERSION"))
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("create")
