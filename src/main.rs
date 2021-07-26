@@ -80,6 +80,7 @@ fn main() {
                 .arg(
                     Arg::with_name("ttl")
                         .long("ttl")
+                        .help("ttl for namespace. valid values are 1-24h or 1-7d")
                         .validator(validate_ttl)
                         .default_value("24h")
                         .takes_value(true)
@@ -88,6 +89,7 @@ fn main() {
                 .arg(
                     Arg::with_name("strip-prefix")
                         .long("strip-prefix")
+                        .help("strip prefix from namespace name if it is already prepended")
                         .short("s")
                         .takes_value(false)
                         .required(false),
@@ -104,14 +106,18 @@ fn main() {
                 .arg(
                     Arg::with_name("svcac")
                         .long("vault-service-account")
+                        .help("add an additional service account for vault access")
                         .required(false)
+                        .takes_value(true)
                         .multiple(true)
                         .number_of_values(1),
                 )
                 .arg(
                     Arg::with_name("svcac-raw")
                         .long("vault-service-account-raw")
+                        .help("service accounts for vault access. comma-separated raw list of values.")
                         .required(false)
+                        .takes_value(true)
                         .multiple(false)
                         .conflicts_with("svcac")
                         .number_of_values(1),
@@ -119,15 +125,17 @@ fn main() {
                 .arg(
                     Arg::with_name("extra-props")
                         .long("extra-data")
+                        .help("provide extra params to api by reading in yaml/json. value prefixed with '@' is treated as a filename.")
+                        .takes_value(true)
                         .required(false)
                         .multiple(false)
                         .number_of_values(1),
                 )
-                .arg(Arg::with_name("hostname").long("hostname").required(false))
-                .arg(Arg::with_name("cluster").long("cluster").required(false))
-                .arg(Arg::with_name("tenant").long("tenant").required(false))
-                .arg(Arg::with_name("productkey").required(true).index(1))
-                .arg(Arg::with_name("name").required(true).index(2)),
+                .arg(Arg::with_name("hostname").long("hostname").required(false).takes_value(true).help("hostname of API, otherwise read from PLATFORM_API_HOSTNAME env var"))
+                .arg(Arg::with_name("cluster").long("cluster").required(false).takes_value(true).help("cluster name, otherwise read from PLATFORM_API_CLUSTER env var"))
+                .arg(Arg::with_name("tenant").long("tenant").required(false).takes_value(true).help("tenant info for auth, otherwise read from PLATFORM_API_TENANT env var"))
+                .arg(Arg::with_name("productkey").required(true).index(1).help("product key, prepended to namespace name"))
+                .arg(Arg::with_name("name").required(true).index(2).help("namespace name, appended as suffix to product key")),
         )
         .get_matches();
     if let Some(crmatch) = matches.subcommand_matches("create") {
