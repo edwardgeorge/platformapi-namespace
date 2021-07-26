@@ -65,6 +65,12 @@ impl VaultServiceAccounts {
     pub fn new() -> Self {
         VaultServiceAccounts::default()
     }
+    pub fn new_no_default() -> Self {
+        VaultServiceAccounts {
+            include_default: false,
+            service_accounts: Vec::new(),
+        }
+    }
     pub fn is_empty(&self) -> bool {
         self.service_accounts.is_empty()
     }
@@ -77,6 +83,18 @@ impl VaultServiceAccounts {
             format!("default,{}", x)
         } else {
             x
+        }
+    }
+    pub fn with_default(self) -> Self {
+        VaultServiceAccounts {
+            include_default: true,
+            service_accounts: self.service_accounts,
+        }
+    }
+    pub fn without_default(self) -> Self {
+        VaultServiceAccounts {
+            include_default: false,
+            service_accounts: self.service_accounts,
         }
     }
 }
@@ -102,17 +120,6 @@ impl std::iter::Extend<String> for VaultServiceAccounts {
                 self.service_accounts.push(acc);
             }
         }
-    }
-}
-
-impl std::iter::FromIterator<String> for VaultServiceAccounts {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = String>,
-    {
-        let mut res = VaultServiceAccounts::default();
-        res.extend(iter);
-        res
     }
 }
 

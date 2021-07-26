@@ -108,6 +108,14 @@ fn main() {
                         .multiple(true)
                         .number_of_values(1),
                 )
+                .arg(
+                    Arg::with_name("svcac-raw")
+                        .long("vault-service-account-raw")
+                        .required(false)
+                        .multiple(false)
+                        .conflicts_with("svcac")
+                        .number_of_values(1),
+                )
                 .arg(Arg::with_name("hostname").long("hostname").required(false))
                 .arg(Arg::with_name("cluster").long("cluster").required(false))
                 .arg(Arg::with_name("tenant").long("tenant").required(false))
@@ -153,7 +161,13 @@ fn main() {
                 labels.extend(labels_from_str(i).drain(..));
             }
         }
-        let mut vsas = VaultServiceAccounts::new();
+        let mut vsas = if let Some(val) = crmatch.value_of("svcac-raw") {
+            let mut vsas = VaultServiceAccounts::new_no_default();
+            vsas.extend(val.split(',').map(|v| v.trim().to_string()));
+            vsas
+        } else {
+            VaultServiceAccounts::new()
+        };
         if let Some(vals) = crmatch.values_of("svcac") {
             vsas.extend(vals.map(|v| v.to_string()));
         }
