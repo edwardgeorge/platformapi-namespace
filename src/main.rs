@@ -10,7 +10,7 @@ pub mod labels;
 pub mod types;
 use auth::get_bearer_token;
 use labels::labels_from_str;
-use types::{Error, Labels, NSDefBuilder, NSResponse};
+use types::{Error, Labels, NSDef, NSDefBuilder, NSResponse, VaultServiceAccounts};
 
 const HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
 const CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
@@ -33,26 +33,10 @@ fn validate_ttl(inp: String) -> Result<(), String> {
     }
 }
 
-fn create(
-    hostname: &str,
-    tenant: &str,
-    cluster: &str,
-    productkey: &str,
-    name: &str,
-    ttl: &str,
-    labels: Labels,
-) -> Result<NSResponse, Error> {
+fn create(hostname: &str, tenant: &str, payload: NSDef) -> Result<NSResponse, Error> {
     let client = Client::new();
     let token = get_bearer_token(&client, tenant)?;
     let url = format!("https://{}/namespace", hostname);
-    let payload = NSDefBuilder::default()
-        .productkey(productkey)
-        .ttl(ttl)
-        .cluster(cluster)
-        .namespace(name)
-        .labels(labels)
-        .build()
-        .unwrap();
     info!(
         "submitting request body to {}: {}",
         url,
@@ -117,6 +101,13 @@ fn main() {
                         .multiple(true)
                         .number_of_values(1),
                 )
+                .arg(
+                    Arg::with_name("svcac")
+                        .long("vault-service-account")
+                        .required(false)
+                        .multiple(true)
+                        .number_of_values(1),
+                )
                 .arg(Arg::with_name("hostname").long("hostname").required(false))
                 .arg(Arg::with_name("cluster").long("cluster").required(false))
                 .arg(Arg::with_name("tenant").long("tenant").required(false))
@@ -162,26 +153,30 @@ fn main() {
                 labels.extend(labels_from_str(i).drain(..));
             }
         }
-        std::process::exit(
-            match create(
-                hostname,
-                tenant,
-                cluster,
-                productkey,
-                name,
-                ttl,
-                labels.drain().map(|a| a.into()).collect(),
-            ) {
-                Ok(r) => {
-                    println!("{}", r);
-                    0
-                }
-                Err(e) => {
-                    eprintln!("{}", e);
-                    1
-                }
-            },
-        );
+        let mut vsas = VaultServiceAccounts::new();
+        if let Some(vals) = crmatch.values_of("svcac") {
+            vsas.extend(vals.map(|v| v.to_string()));
+        }
+        let labelscollected: Labels = labels.drain().map(|a| a.into()).collect();
+        let payload = NSDefBuilder::default()
+            .productkey(productkey)
+            .ttl(ttl)
+            .cluster(cluster)
+            .namespace(name)
+            .labels(labelscollected)
+            .vault_service_accounts(vsas)
+            .build()
+            .unwrap();
+        std::process::exit(match create(hostname, tenant, payload) {
+            Ok(r) => {
+                println!("{}", r);
+                0
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                1
+            }
+        });
     } else {
         panic!("No subcommand");
     }
