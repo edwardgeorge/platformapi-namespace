@@ -1,5 +1,6 @@
 use derive_builder::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -152,6 +153,9 @@ pub struct NSDef<'a> {
         rename = "vault_config"
     )]
     pub vault_service_accounts: VaultServiceAccounts,
+    #[builder(default)]
+    #[serde(flatten)]
+    pub extra_properties: HashMap<String, Value>,
 }
 
 pub type Labels = Vec<KeyValue>;

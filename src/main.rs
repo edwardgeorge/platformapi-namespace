@@ -116,6 +116,13 @@ fn main() {
                         .conflicts_with("svcac")
                         .number_of_values(1),
                 )
+                .arg(
+                    Arg::with_name("extra-props")
+                        .long("extra-data")
+                        .required(false)
+                        .multiple(false)
+                        .number_of_values(1),
+                )
                 .arg(Arg::with_name("hostname").long("hostname").required(false))
                 .arg(Arg::with_name("cluster").long("cluster").required(false))
                 .arg(Arg::with_name("tenant").long("tenant").required(false))
@@ -171,6 +178,17 @@ fn main() {
         if let Some(vals) = crmatch.values_of("svcac") {
             vsas.extend(vals.map(|v| v.to_string()));
         }
+        let extra: HashMap<String, serde_json::Value> =
+            if let Some(val) = crmatch.value_of("extra-props") {
+                if let Some(filename) = val.strip_prefix('@') {
+                    let f = std::fs::File::open(filename).unwrap();
+                    serde_yaml::from_reader(f).unwrap()
+                } else {
+                    serde_yaml::from_str(val).unwrap()
+                }
+            } else {
+                HashMap::new()
+            };
         let labelscollected: Labels = labels.drain().map(|a| a.into()).collect();
         let payload = NSDefBuilder::default()
             .productkey(productkey)
@@ -179,6 +197,7 @@ fn main() {
             .namespace(name)
             .labels(labelscollected)
             .vault_service_accounts(vsas)
+            .extra_properties(extra)
             .build()
             .unwrap();
         std::process::exit(match create(hostname, tenant, payload) {
