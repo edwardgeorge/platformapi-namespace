@@ -55,6 +55,79 @@ impl From<KeyValue> for (String, String) {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
+pub struct VaultServiceAccounts {
+    include_default: bool,
+    service_accounts: Vec<String>,
+}
+
+impl VaultServiceAccounts {
+    pub fn new() -> Self {
+        VaultServiceAccounts::default()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.service_accounts.is_empty()
+    }
+    pub fn service_accounts_string(&self) -> String {
+        if self.service_accounts.is_empty() && !self.include_default {
+            return "".to_string();
+        }
+        let x = self.service_accounts.join(",");
+        if self.include_default {
+            format!("default,{}", x)
+        } else {
+            x
+        }
+    }
+}
+
+impl std::default::Default for VaultServiceAccounts {
+    fn default() -> Self {
+        VaultServiceAccounts {
+            include_default: true,
+            service_accounts: Vec::new(),
+        }
+    }
+}
+
+impl std::iter::Extend<String> for VaultServiceAccounts {
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = String>,
+    {
+        for acc in iter.into_iter() {
+            if acc == "default" {
+                self.include_default = true;
+            } else {
+                self.service_accounts.push(acc);
+            }
+        }
+    }
+}
+
+impl std::iter::FromIterator<String> for VaultServiceAccounts {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = String>,
+    {
+        let mut res = VaultServiceAccounts::default();
+        res.extend(iter);
+        res
+    }
+}
+
+impl Serialize for VaultServiceAccounts {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut s = serializer.serialize_struct("vault_config", 1)?;
+        s.serialize_field("service_account_name", &self.service_accounts_string())?;
+        s.end()
+    }
+}
+
 // simply used for serialising so no need to take ownership of strs
 #[derive(Debug, Serialize, Builder)]
 #[builder(setter(into))]
@@ -63,8 +136,15 @@ pub struct NSDef<'a> {
     pub ttl: &'a str,
     pub cluster: &'a str,
     pub namespace: &'a str,
+    #[builder(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub labels: Labels,
+    #[builder(default)]
+    #[serde(
+        skip_serializing_if = "VaultServiceAccounts::is_empty",
+        rename = "vault_config"
+    )]
+    pub vault_service_accounts: VaultServiceAccounts,
 }
 
 pub type Labels = Vec<KeyValue>;
