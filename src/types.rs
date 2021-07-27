@@ -94,6 +94,8 @@ impl Serialize for VaultServiceAccounts {
     }
 }
 
+pub type ExtraProps = HashMap<String, Value>;
+
 // simply used for serialising so no need to take ownership of strs
 #[derive(Debug, Serialize, Builder)]
 #[builder(setter(into))]
@@ -116,7 +118,7 @@ pub struct NSDef<'a> {
     pub vault_service_accounts: VaultServiceAccounts,
     #[builder(default)]
     #[serde(flatten)]
-    pub extra_properties: HashMap<String, Value>,
+    pub extra_properties: ExtraProps,
 }
 
 #[derive(Debug, Deserialize)]
@@ -169,4 +171,19 @@ pub enum Error {
     OptionError(String, String, String),
     #[error("{0}")]
     UnknownError(String),
+}
+
+// this is used to pretty print our final exceptions
+pub struct ExitError(Error);
+
+impl From<Error> for ExitError {
+    fn from(err: Error) -> ExitError {
+        ExitError(err)
+    }
+}
+
+impl fmt::Debug for ExitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.0)
+    }
 }

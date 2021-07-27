@@ -1,4 +1,4 @@
-use clap::{App, AppSettings, Arg, SubCommand};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use klap::{Annotations, Labels};
 use log::info;
 use regex::Regex;
@@ -11,7 +11,7 @@ mod metadata;
 mod types;
 use auth::get_bearer_token;
 use metadata::metadata_from_matches;
-use types::{Error, NSDef, NSDefBuilder, NSResponse, VaultServiceAccounts};
+use types::{Error, ExitError, ExtraProps, NSDef, NSDefBuilder, NSResponse, VaultServiceAccounts};
 
 const HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
 const CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
@@ -53,6 +53,33 @@ fn validate_ttl(inp: String) -> Result<(), String> {
     }
 }
 
+fn match_vault_service_accounts(matches: &ArgMatches<'_>) -> VaultServiceAccounts {
+    let mut vsas: VaultServiceAccounts;
+    if let Some(val) = matches.value_of("svcac-raw") {
+        vsas = VaultServiceAccounts::new_no_default();
+        vsas.extend(val.split(',').map(|v| v.trim().to_string()));
+    } else {
+        vsas = VaultServiceAccounts::new();
+    };
+    if let Some(vals) = matches.values_of("svcac") {
+        vsas.extend(vals.map(|v| v.to_string()));
+    }
+    vsas
+}
+
+fn match_extra(matches: &ArgMatches<'_>) -> Result<ExtraProps, Error> {
+    if let Some(val) = matches.value_of("extra-props") {
+        if let Some(filename) = val.strip_prefix('@') {
+            let f = std::fs::File::open(filename).map_err(|e| Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string()))?;
+            serde_yaml::from_reader(f).map_err(|e| Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string()))
+        } else {
+            serde_yaml::from_str(val).map_err(|e| Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string()))
+        }
+    } else {
+        Ok(HashMap::new())
+    }
+}
+
 fn create(hostname: &str, tenant: &str, payload: NSDef) -> Result<NSResponse, Error> {
     let client = Client::new();
     let token = get_bearer_token(&client, tenant)?;
@@ -87,7 +114,7 @@ fn create(hostname: &str, tenant: &str, payload: NSDef) -> Result<NSResponse, Er
     }
 }
 
-fn main() {
+fn main() -> Result<(), ExitError> {
     env_logger::init();
     let matches = App::new("Platform API Namespace Client")
         .version(env!("CARGO_PKG_VERSION"))
@@ -183,28 +210,9 @@ fn main() {
         let hostname: String = option_or_env!(crmatch, "hostname", HOSTNAME_ENV_VAR);
         let cluster: String = option_or_env!(crmatch, "cluster", CLUSTER_ENV_VAR);
         let tenant: String = option_or_env!(crmatch, "tenant", TENANT_ENV_VAR);
-        let mut metadata = metadata_from_matches(&matches).unwrap();
-        let mut vsas = if let Some(val) = crmatch.value_of("svcac-raw") {
-            let mut vsas = VaultServiceAccounts::new_no_default();
-            vsas.extend(val.split(',').map(|v| v.trim().to_string()));
-            vsas
-        } else {
-            VaultServiceAccounts::new()
-        };
-        if let Some(vals) = crmatch.values_of("svcac") {
-            vsas.extend(vals.map(|v| v.to_string()));
-        }
-        let extra: HashMap<String, serde_json::Value> =
-            if let Some(val) = crmatch.value_of("extra-props") {
-                if let Some(filename) = val.strip_prefix('@') {
-                    let f = std::fs::File::open(filename).unwrap();
-                    serde_yaml::from_reader(f).unwrap()
-                } else {
-                    serde_yaml::from_str(val).unwrap()
-                }
-            } else {
-                HashMap::new()
-            };
+        let mut metadata = metadata_from_matches(&matches)?;
+        let vsas = match_vault_service_accounts(&matches);
+        let extra = match_extra(crmatch)?;
         let labelscollected: Labels = metadata.labels.drain().map(|a| a.into()).collect();
         let annotationscollected: Annotations =
             metadata.annotations.drain().map(|a| a.into()).collect();
@@ -219,16 +227,19 @@ fn main() {
             .extra_properties(extra)
             .build()
             .unwrap();
-        std::process::exit(match create(&hostname, &tenant, payload) {
-            Ok(r) => {
-                println!("{}", r);
-                0
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                1
-            }
-        });
+        //std::process::exit(match create(&hostname, &tenant, payload) {
+        //    Ok(r) => {
+        //        println!("{}", r);
+        //        0
+        //    }
+        //    Err(e) => {
+        //        eprintln!("{}", e);
+        //        1
+        //    }
+        //});
+        let resp = create(&hostname, &tenant, payload)?;
+        println!("{}", resp);
+        Ok(())
     } else {
         panic!("No subcommand");
     }
