@@ -191,6 +191,13 @@ fn main() -> Result<(), ExitError> {
                         .multiple(false)
                         .number_of_values(1),
                 )
+                .arg(
+                    Arg::with_name("debug")
+                        .short("d")
+                        .long("dry-run")
+                        .takes_value(false)
+                        .required(false)
+                )
                 .arg(Arg::with_name("hostname").long("hostname").required(false).takes_value(true).help("hostname of API, otherwise read from PLATFORM_API_HOSTNAME env var"))
                 .arg(Arg::with_name("cluster").long("cluster").required(false).takes_value(true).help("cluster name, otherwise read from PLATFORM_API_CLUSTER env var"))
                 .arg(Arg::with_name("tenant").long("tenant").required(false).takes_value(true).help("tenant info for auth, otherwise read from PLATFORM_API_TENANT env var"))
@@ -246,6 +253,14 @@ fn main() -> Result<(), ExitError> {
             .extra_properties(extra)
             .build()
             .unwrap();
+        if crmatch.occurrences_of("debug") > 0 {
+            println!(
+                "Would submit the following payload to the API:\n{}",
+                serde_json::to_string_pretty(&payload).unwrap()
+            );
+            eprintln!("Dry-run, not calling API!");
+            return Ok(());
+        }
         //std::process::exit(match create(&hostname, &tenant, payload) {
         //    Ok(r) => {
         //        println!("{}", r);
