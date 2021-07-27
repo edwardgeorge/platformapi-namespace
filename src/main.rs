@@ -1,8 +1,5 @@
 use clap::{App, AppSettings, Arg, SubCommand};
-use klap::{
-    annotation_from_str, labels_from_str_either, AnnotationMap, Annotations, Label, LabelMap,
-    Labels,
-};
+use klap::{Annotations, Labels};
 use log::info;
 use regex::Regex;
 use reqwest::blocking::Client;
@@ -13,7 +10,7 @@ mod auth;
 mod metadata;
 mod types;
 use auth::get_bearer_token;
-use metadata::{parse_metadata, Metadata};
+use metadata::metadata_from_matches;
 use types::{Error, NSDef, NSDefBuilder, NSResponse, VaultServiceAccounts};
 
 const HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
@@ -191,40 +188,7 @@ fn main() {
                 );
                 std::process::exit(1)
             });
-        let metadata = crmatch
-            .value_of("manifest")
-            .map(parse_metadata)
-            .transpose()
-            .unwrap()
-            .unwrap_or_else(Metadata::default);
-        let mut labels: LabelMap = metadata.labels;
-        let mut annotations: AnnotationMap = metadata.annotations;
-        if let Some(vals) = crmatch.values_of("labels") {
-            for i in vals {
-                match labels_from_str_either(i) {
-                    Err(e) => {
-                        eprintln!("error processing label value '{}':\n{}", i, e);
-                        std::process::exit(1);
-                    }
-                    Ok(mut l) => {
-                        labels.extend(l.drain(..).map(Label::into_tuple));
-                    }
-                }
-            }
-        }
-        if let Some(vals) = crmatch.values_of("annotation") {
-            for i in vals {
-                match annotation_from_str(i) {
-                    Err(e) => {
-                        eprintln!("error processing annotation value '{}':\n{}", i, e);
-                        std::process::exit(1);
-                    }
-                    Ok(an) => {
-                        annotations.insert(an.key, an.value);
-                    }
-                }
-            }
-        }
+        let mut metadata = metadata_from_matches(&matches).unwrap();
         let mut vsas = if let Some(val) = crmatch.value_of("svcac-raw") {
             let mut vsas = VaultServiceAccounts::new_no_default();
             vsas.extend(val.split(',').map(|v| v.trim().to_string()));
@@ -246,8 +210,9 @@ fn main() {
             } else {
                 HashMap::new()
             };
-        let labelscollected: Labels = labels.drain().map(|a| a.into()).collect();
-        let annotationscollected: Annotations = annotations.drain().map(|a| a.into()).collect();
+        let labelscollected: Labels = metadata.labels.drain().map(|a| a.into()).collect();
+        let annotationscollected: Annotations =
+            metadata.annotations.drain().map(|a| a.into()).collect();
         let payload = NSDefBuilder::default()
             .productkey(productkey)
             .ttl(ttl)

@@ -1,4 +1,5 @@
-use klap::{AnnotationMap, LabelMap};
+use clap::ArgMatches;
+use klap::{annotation_from_str, labels_from_str_either, AnnotationMap, Label, LabelMap};
 use serde::Deserialize;
 use serde_yaml::{from_reader, from_str};
 use std::fs;
@@ -18,13 +19,74 @@ struct Manifest {
     metadata: Metadata,
 }
 
-pub fn parse_metadata(input: &str) -> Result<Metadata, Error> {
+fn parse_metadata(input: &str) -> Result<Metadata, Error> {
     let res: Result<Manifest, _> = if let Some(filename) = input.strip_prefix("@") {
-        let f = fs::File::open(filename).map_err(|v| Error::UnknownError(v.to_string()))?;
+        let f = fs::File::open(filename).map_err(|v| {
+            Error::OptionError(
+                "metadata-from-manifest".to_string(),
+                input.to_string(),
+                v.to_string(),
+            )
+        })?;
         from_reader(f)
     } else {
         from_str(input)
     };
     res.map(|v| v.metadata)
         .map_err(|e| Error::UnknownError(e.to_string()))
+}
+
+fn match_labels(matches: &ArgMatches<'_>, labels: &mut LabelMap) -> Result<(), Error> {
+    if let Some(label_opts) = matches.values_of("labels") {
+        for labelstr in label_opts {
+            match labels_from_str_either(labelstr) {
+                Err(e) => {
+                    return Err(Error::OptionError(
+                        "labels".to_string(),
+                        labelstr.to_string(),
+                        format!("\n{}", e),
+                    ));
+                }
+                Ok(mut l) => {
+                    labels.extend(l.drain(..).map(Label::into_tuple));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn match_annotations(
+    matches: &ArgMatches<'_>,
+    annotations: &mut AnnotationMap,
+) -> Result<(), Error> {
+    if let Some(anno_opts) = matches.values_of("annotations") {
+        for anno_str in anno_opts {
+            match annotation_from_str(anno_str) {
+                Err(e) => {
+                    return Err(Error::OptionError(
+                        "annotation".to_string(),
+                        anno_str.to_string(),
+                        format!("\n{}", e),
+                    ));
+                }
+                Ok(an) => {
+                    annotations.insert(an.key, an.value);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn metadata_from_matches(matches: &ArgMatches<'_>) -> Result<Metadata, Error> {
+    let mut metadata: Metadata;
+    if let Some(manifest) = matches.value_of("manifest") {
+        metadata = parse_metadata(manifest)?;
+    } else {
+        metadata = Metadata::default();
+    }
+    match_labels(matches, &mut metadata.labels)?;
+    match_annotations(matches, &mut metadata.annotations)?;
+    Ok(metadata)
 }

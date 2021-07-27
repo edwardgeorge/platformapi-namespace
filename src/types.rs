@@ -165,6 +165,8 @@ pub enum Error {
     APIError(u16, String),
     #[error("Timeout calling PlatformAPI")]
     APITimeoutError,
+    #[error("Error in {0} option value '{1}': {2}")]
+    OptionError(String, String, String),
     #[error("{0}")]
     UnknownError(String),
 }
