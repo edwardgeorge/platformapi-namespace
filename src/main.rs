@@ -158,7 +158,7 @@ fn main() -> Result<(), ExitError> {
                 .arg(
                     Arg::with_name("manifest")
                         .long("metadata-from-manifest")
-                        .required(false)
+                        .required_if("name", "-")
                         .takes_value(true)
                         .multiple(false)
                         .number_of_values(1)
@@ -200,17 +200,36 @@ fn main() -> Result<(), ExitError> {
         .get_matches();
     if let Some(crmatch) = matches.subcommand_matches("create") {
         let productkey = crmatch.value_of("productkey").unwrap();
-        let mut name = crmatch.value_of("name").unwrap();
+        let mut name = crmatch.value_of("name").unwrap().to_string();
         let ttl = crmatch.value_of("ttl").unwrap();
-        if crmatch.is_present("strip-prefix") {
+        let mut metadata = metadata_from_matches(&crmatch)?;
+        let mut strict_strip_prefix = false;
+        if name == "-" {
+            name = match metadata.name {
+                Some(mname) => mname,
+                None => {
+                    return Err(Error::UnknownError(
+                        "name passed as '-' but no name provided in manifest metadata".to_string(),
+                    )
+                    .into());
+                }
+            };
+            strict_strip_prefix = true;
+        }
+        if crmatch.is_present("strip-prefix") || strict_strip_prefix {
             if let Some(suffix) = name.strip_prefix(&format!("{}-", productkey)) {
-                name = suffix;
+                name = suffix.to_string();
+            } else if strict_strip_prefix {
+                return Err(Error::UnknownError(format!(
+                    "Expected that name '{}' is prefixed with product key '{}'",
+                    name, productkey
+                ))
+                .into());
             }
         }
         let hostname: String = option_or_env!(crmatch, "hostname", HOSTNAME_ENV_VAR);
         let cluster: String = option_or_env!(crmatch, "cluster", CLUSTER_ENV_VAR);
         let tenant: String = option_or_env!(crmatch, "tenant", TENANT_ENV_VAR);
-        let mut metadata = metadata_from_matches(&matches)?;
         let vsas = match_vault_service_accounts(&matches);
         let extra = match_extra(crmatch)?;
         let labelscollected: Labels = metadata.labels.drain().map(|a| a.into()).collect();
@@ -219,7 +238,7 @@ fn main() -> Result<(), ExitError> {
         let payload = NSDefBuilder::default()
             .productkey(productkey)
             .ttl(ttl)
-            .cluster(&cluster[..])
+            .cluster(cluster)
             .namespace(name)
             .labels(labelscollected)
             .annotations(annotationscollected)

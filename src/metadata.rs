@@ -8,6 +8,7 @@ use crate::types::Error;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct Metadata {
+    pub name: Option<String>,
     #[serde(default)]
     pub labels: LabelMap,
     #[serde(default)]

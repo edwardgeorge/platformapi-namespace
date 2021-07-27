@@ -96,14 +96,13 @@ impl Serialize for VaultServiceAccounts {
 
 pub type ExtraProps = HashMap<String, Value>;
 
-// simply used for serialising so no need to take ownership of strs
 #[derive(Debug, Serialize, Builder)]
 #[builder(setter(into))]
-pub struct NSDef<'a> {
-    pub productkey: &'a str,
-    pub ttl: &'a str,
-    pub cluster: &'a str,
-    pub namespace: &'a str,
+pub struct NSDef {
+    pub productkey: String,
+    pub ttl: String,
+    pub cluster: String,
+    pub namespace: String,
     #[builder(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub labels: Labels,
