@@ -17,6 +17,25 @@ const HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
 const CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
 const TENANT_ENV_VAR: &str = "PLATFORM_API_TENANT";
 
+macro_rules! option_or_env {
+    ($matches:ident, $opt:expr, $var:ident) => {
+        if let Some(val) = $matches.value_of($opt) {
+            val.to_string()
+        } else {
+            match env::var($var) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!(
+                        "'--{}' option missing and could not read {} env var: {}",
+                        $opt, $var, e
+                    );
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+}
+
 fn strip_prefix_if_exists<'a>(name: &'a str, prefix: &str) -> &'a str {
     if name.starts_with(&format!("{}-", prefix)) {
         &name[prefix.len() + 1..]
@@ -69,9 +88,6 @@ fn create(hostname: &str, tenant: &str, payload: NSDef) -> Result<NSResponse, Er
 }
 
 fn main() {
-    let def_hostname = env::var(HOSTNAME_ENV_VAR);
-    let def_cluster = env::var(CLUSTER_ENV_VAR);
-    let def_tenant = env::var(TENANT_ENV_VAR);
     env_logger::init();
     let matches = App::new("Platform API Namespace Client")
         .version(env!("CARGO_PKG_VERSION"))
@@ -164,30 +180,9 @@ fn main() {
         if crmatch.is_present("strip-prefix") {
             name = strip_prefix_if_exists(name, productkey);
         }
-        let hostname = merge_option_and_result(matches.value_of("hostname"), &def_hostname)
-            .unwrap_or_else(|e| {
-                eprintln!(
-                    "'--hostname' option missing and could not read {} env var: {}",
-                    HOSTNAME_ENV_VAR, e
-                );
-                std::process::exit(1)
-            });
-        let cluster = merge_option_and_result(matches.value_of("cluster"), &def_cluster)
-            .unwrap_or_else(|e| {
-                eprintln!(
-                    "'--cluster' option missing and could not read {} env var: {}",
-                    CLUSTER_ENV_VAR, e
-                );
-                std::process::exit(1)
-            });
-        let tenant = merge_option_and_result(matches.value_of("tenant"), &def_tenant)
-            .unwrap_or_else(|e| {
-                eprintln!(
-                    "'--tenant' option missing and could not read {} env var: {}",
-                    TENANT_ENV_VAR, e
-                );
-                std::process::exit(1)
-            });
+        let hostname: String = option_or_env!(crmatch, "hostname", HOSTNAME_ENV_VAR);
+        let cluster: String = option_or_env!(crmatch, "cluster", CLUSTER_ENV_VAR);
+        let tenant: String = option_or_env!(crmatch, "tenant", TENANT_ENV_VAR);
         let mut metadata = metadata_from_matches(&matches).unwrap();
         let mut vsas = if let Some(val) = crmatch.value_of("svcac-raw") {
             let mut vsas = VaultServiceAccounts::new_no_default();
@@ -216,7 +211,7 @@ fn main() {
         let payload = NSDefBuilder::default()
             .productkey(productkey)
             .ttl(ttl)
-            .cluster(cluster)
+            .cluster(&cluster[..])
             .namespace(name)
             .labels(labelscollected)
             .annotations(annotationscollected)
@@ -224,7 +219,7 @@ fn main() {
             .extra_properties(extra)
             .build()
             .unwrap();
-        std::process::exit(match create(hostname, tenant, payload) {
+        std::process::exit(match create(&hostname, &tenant, payload) {
             Ok(r) => {
                 println!("{}", r);
                 0
@@ -236,21 +231,5 @@ fn main() {
         });
     } else {
         panic!("No subcommand");
-    }
-}
-
-// apologies for this function,
-// this is for missing options which should be taken from the environment,
-// it munges the types into the correct ones
-fn merge_option_and_result<'a, E>(
-    a: Option<&'a str>,
-    b: &'a Result<String, E>,
-) -> Result<&'a str, &'a E> {
-    match a {
-        Some(v) => Ok(v),
-        None => match b {
-            Ok(ref v) => Ok(v),
-            Err(e) => Err(e),
-        },
     }
 }
