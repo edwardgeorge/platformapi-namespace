@@ -237,7 +237,7 @@ fn main() -> Result<(), ExitError> {
         let hostname: String = option_or_env!(crmatch, "hostname", HOSTNAME_ENV_VAR);
         let cluster: String = option_or_env!(crmatch, "cluster", CLUSTER_ENV_VAR);
         let tenant: String = option_or_env!(crmatch, "tenant", TENANT_ENV_VAR);
-        let vsas = match_vault_service_accounts(&matches);
+        let vsas = match_vault_service_accounts(&crmatch);
         let extra = match_extra(crmatch)?;
         let labelscollected: Labels = metadata.labels.drain().map(|a| a.into()).collect();
         let annotationscollected: Annotations =
