@@ -14,7 +14,7 @@ pub struct Metadata {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct Manifest {
+struct Manifest {
     metadata: Metadata,
 }
 
