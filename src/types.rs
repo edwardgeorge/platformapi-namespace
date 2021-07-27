@@ -1,4 +1,5 @@
 use derive_builder::*;
+use klap::Labels;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -22,37 +23,6 @@ impl Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
-    }
-}
-
-// simply used for serialising so no need to take ownership of strs
-#[derive(Clone, Debug, Serialize)]
-pub struct KeyValue {
-    key: String,
-    value: String,
-}
-
-impl Extend<KeyValue> for HashMap<String, String> {
-    fn extend<T: IntoIterator<Item = KeyValue>>(&mut self, iter: T) {
-        self.extend(iter.into_iter().map(<(String, String)>::from));
-    }
-}
-
-impl KeyValue {
-    pub fn new(key: String, value: String) -> Self {
-        KeyValue { key, value }
-    }
-}
-
-impl From<(String, String)> for KeyValue {
-    fn from(input: (String, String)) -> Self {
-        Self::new(input.0, input.1)
-    }
-}
-
-impl From<KeyValue> for (String, String) {
-    fn from(input: KeyValue) -> Self {
-        (input.key, input.value)
     }
 }
 
@@ -84,18 +54,6 @@ impl VaultServiceAccounts {
             format!("default,{}", x)
         } else {
             x
-        }
-    }
-    pub fn with_default(self) -> Self {
-        VaultServiceAccounts {
-            include_default: true,
-            service_accounts: self.service_accounts,
-        }
-    }
-    pub fn without_default(self) -> Self {
-        VaultServiceAccounts {
-            include_default: false,
-            service_accounts: self.service_accounts,
         }
     }
 }
@@ -157,8 +115,6 @@ pub struct NSDef<'a> {
     #[serde(flatten)]
     pub extra_properties: HashMap<String, Value>,
 }
-
-pub type Labels = Vec<KeyValue>;
 
 #[derive(Debug, Deserialize)]
 pub struct NSResponse {
