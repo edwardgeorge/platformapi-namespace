@@ -1,16 +1,15 @@
 use clap::{App, AppSettings, Arg, SubCommand};
+use klap::{labels_from_str_either, Label, LabelMap, Labels};
 use log::info;
 use regex::Regex;
 use reqwest::blocking::Client;
 use std::collections::HashMap;
 use std::env;
 
-pub mod auth;
-pub mod labels;
-pub mod types;
+mod auth;
+mod types;
 use auth::get_bearer_token;
-use labels::labels_from_str;
-use types::{Error, Labels, NSDef, NSDefBuilder, NSResponse, VaultServiceAccounts};
+use types::{Error, NSDef, NSDefBuilder, NSResponse, VaultServiceAccounts};
 
 const HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
 const CLUSTER_ENV_VAR: &str = "PLATFORM_API_CLUSTER";
@@ -171,10 +170,18 @@ fn main() {
                 std::process::exit(1)
             });
         // use hashmap so keys override each other
-        let mut labels = HashMap::new();
+        let mut labels: LabelMap = HashMap::new();
         if let Some(vals) = crmatch.values_of("labels") {
             for i in vals {
-                labels.extend(labels_from_str(i).drain(..));
+                match labels_from_str_either(i) {
+                    Err(e) => {
+                        eprintln!("error processing label value '{}':\n{}", i, e);
+                        std::process::exit(1);
+                    }
+                    Ok(mut l) => {
+                        labels.extend(l.drain(..).map(Label::into_tuple));
+                    }
+                }
             }
         }
         let mut vsas = if let Some(val) = crmatch.value_of("svcac-raw") {
