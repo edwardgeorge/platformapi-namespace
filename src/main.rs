@@ -36,14 +36,6 @@ macro_rules! option_or_env {
     };
 }
 
-fn strip_prefix_if_exists<'a>(name: &'a str, prefix: &str) -> &'a str {
-    if name.starts_with(&format!("{}-", prefix)) {
-        &name[prefix.len() + 1..]
-    } else {
-        name
-    }
-}
-
 fn validate_ttl(inp: String) -> Result<(), String> {
     let re = Regex::new(r"^(1([hd]|[0-9]h)|2([hd]|[0-4]h)|[3-7][hd]|[89]h)$").unwrap();
     if re.is_match(&inp) {
@@ -70,10 +62,16 @@ fn match_vault_service_accounts(matches: &ArgMatches<'_>) -> VaultServiceAccount
 fn match_extra(matches: &ArgMatches<'_>) -> Result<ExtraProps, Error> {
     if let Some(val) = matches.value_of("extra-props") {
         if let Some(filename) = val.strip_prefix('@') {
-            let f = std::fs::File::open(filename).map_err(|e| Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string()))?;
-            serde_yaml::from_reader(f).map_err(|e| Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string()))
+            let f = std::fs::File::open(filename).map_err(|e| {
+                Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string())
+            })?;
+            serde_yaml::from_reader(f).map_err(|e| {
+                Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string())
+            })
         } else {
-            serde_yaml::from_str(val).map_err(|e| Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string()))
+            serde_yaml::from_str(val).map_err(|e| {
+                Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string())
+            })
         }
     } else {
         Ok(HashMap::new())
@@ -205,7 +203,9 @@ fn main() -> Result<(), ExitError> {
         let mut name = crmatch.value_of("name").unwrap();
         let ttl = crmatch.value_of("ttl").unwrap();
         if crmatch.is_present("strip-prefix") {
-            name = strip_prefix_if_exists(name, productkey);
+            if let Some(suffix) = name.strip_prefix(&format!("{}-", productkey)) {
+                name = suffix;
+            }
         }
         let hostname: String = option_or_env!(crmatch, "hostname", HOSTNAME_ENV_VAR);
         let cluster: String = option_or_env!(crmatch, "cluster", CLUSTER_ENV_VAR);
