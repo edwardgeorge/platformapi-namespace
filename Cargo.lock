@@ -555,7 +555,7 @@ dependencies = [
 [[package]]
 name = "klap"
 version = "0.1.0"
-source = "git+https://github.com/edwardgeorge/klap.git?branch=main#8a7075f1798f9467a28398bcd0e1542bd12811a8"
+source = "git+https://github.com/edwardgeorge/klap.git?branch=main#bbc5b8484381ca87e75ae524c5942deb809ba095"
 dependencies = [
  "pest",
  "pest_derive",

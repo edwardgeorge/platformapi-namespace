@@ -1,5 +1,8 @@
 use clap::{App, AppSettings, Arg, SubCommand};
-use klap::{labels_from_str_either, Label, LabelMap, Labels};
+use klap::{
+    annotation_from_str, labels_from_str_either, AnnotationMap, Annotations, Label, LabelMap,
+    Labels,
+};
 use log::info;
 use regex::Regex;
 use reqwest::blocking::Client;
@@ -7,8 +10,10 @@ use std::collections::HashMap;
 use std::env;
 
 mod auth;
+mod metadata;
 mod types;
 use auth::get_bearer_token;
+use metadata::{parse_metadata, Metadata};
 use types::{Error, NSDef, NSDefBuilder, NSResponse, VaultServiceAccounts};
 
 const HOSTNAME_ENV_VAR: &str = "PLATFORM_API_HOSTNAME";
@@ -104,6 +109,23 @@ fn main() {
                         .number_of_values(1),
                 )
                 .arg(
+                    Arg::with_name("annotation")
+                        .short("a")
+                        .long("annotation")
+                        .required(false)
+                        .takes_value(true)
+                        .multiple(true)
+                        .number_of_values(1)
+                )
+                .arg(
+                    Arg::with_name("manifest")
+                        .long("metadata-from-manifest")
+                        .required(false)
+                        .takes_value(true)
+                        .multiple(false)
+                        .number_of_values(1)
+                )
+                .arg(
                     Arg::with_name("svcac")
                         .long("vault-service-account")
                         .help("add an additional service account for vault access")
@@ -169,8 +191,14 @@ fn main() {
                 );
                 std::process::exit(1)
             });
-        // use hashmap so keys override each other
-        let mut labels: LabelMap = HashMap::new();
+        let metadata = crmatch
+            .value_of("manifest")
+            .map(parse_metadata)
+            .transpose()
+            .unwrap()
+            .unwrap_or_else(Metadata::default);
+        let mut labels: LabelMap = metadata.labels;
+        let mut annotations: AnnotationMap = metadata.annotations;
         if let Some(vals) = crmatch.values_of("labels") {
             for i in vals {
                 match labels_from_str_either(i) {
@@ -180,6 +208,19 @@ fn main() {
                     }
                     Ok(mut l) => {
                         labels.extend(l.drain(..).map(Label::into_tuple));
+                    }
+                }
+            }
+        }
+        if let Some(vals) = crmatch.values_of("annotation") {
+            for i in vals {
+                match annotation_from_str(i) {
+                    Err(e) => {
+                        eprintln!("error processing annotation value '{}':\n{}", i, e);
+                        std::process::exit(1);
+                    }
+                    Ok(an) => {
+                        annotations.insert(an.key, an.value);
                     }
                 }
             }
@@ -206,12 +247,14 @@ fn main() {
                 HashMap::new()
             };
         let labelscollected: Labels = labels.drain().map(|a| a.into()).collect();
+        let annotationscollected: Annotations = annotations.drain().map(|a| a.into()).collect();
         let payload = NSDefBuilder::default()
             .productkey(productkey)
             .ttl(ttl)
             .cluster(cluster)
             .namespace(name)
             .labels(labelscollected)
+            .annotations(annotationscollected)
             .vault_service_accounts(vsas)
             .extra_properties(extra)
             .build()

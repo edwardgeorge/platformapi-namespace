@@ -1,5 +1,5 @@
 use derive_builder::*;
-use klap::Labels;
+use klap::{Annotations, Labels};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -105,6 +105,9 @@ pub struct NSDef<'a> {
     #[builder(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub labels: Labels,
+    #[builder(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub annotations: Annotations,
     #[builder(default)]
     #[serde(
         skip_serializing_if = "VaultServiceAccounts::is_empty",
