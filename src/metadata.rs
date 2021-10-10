@@ -21,9 +21,9 @@ struct Manifest {
 }
 
 fn parse_metadata(input: &str) -> Result<Metadata, Error> {
-    let res: Result<Manifest, _> = if let Some(filename) = input.strip_prefix("@") {
+    let res: Result<Manifest, _> = if let Some(filename) = input.strip_prefix('@') {
         let f = fs::File::open(filename).map_err(|v| {
-            Error::OptionError(
+            Error::Option(
                 "metadata-from-manifest".to_string(),
                 input.to_string(),
                 v.to_string(),
@@ -34,7 +34,7 @@ fn parse_metadata(input: &str) -> Result<Metadata, Error> {
         from_str(input)
     };
     res.map(|v| v.metadata)
-        .map_err(|e| Error::UnknownError(e.to_string()))
+        .map_err(|e| Error::Unknown(e.to_string()))
 }
 
 fn match_labels(matches: &ArgMatches<'_>, labels: &mut LabelMap) -> Result<(), Error> {
@@ -42,14 +42,14 @@ fn match_labels(matches: &ArgMatches<'_>, labels: &mut LabelMap) -> Result<(), E
         for labelstr in label_opts {
             match labels_from_str_either(labelstr) {
                 Err(e) => {
-                    return Err(Error::OptionError(
+                    return Err(Error::Option(
                         "labels".to_string(),
                         labelstr.to_string(),
                         format!("\n{}", e),
                     ));
                 }
-                Ok(mut l) => {
-                    labels.extend(l.drain(..).map(Label::into_tuple));
+                Ok(l) => {
+                    labels.extend(l.into_iter().map(Label::into_tuple));
                 }
             }
         }
@@ -65,7 +65,7 @@ fn match_annotations(
         for anno_str in anno_opts {
             match annotation_from_str(anno_str) {
                 Err(e) => {
-                    return Err(Error::OptionError(
+                    return Err(Error::Option(
                         "annotation".to_string(),
                         anno_str.to_string(),
                         format!("\n{}", e),

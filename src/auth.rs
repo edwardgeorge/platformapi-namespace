@@ -6,7 +6,7 @@ use crate::types::{Error, OAuthCred, Token};
 
 fn get_env_var(name: &str) -> Result<String, Error> {
     env::var(name).map_err(|e| {
-        Error::EnvironmentError(format!("Could not get '{}' from environment: {}", name, e))
+        Error::Environment(format!("Could not get '{}' from environment: {}", name, e))
     })
 }
 
@@ -14,7 +14,7 @@ fn get_oauth_creds_from_env() -> Result<OAuthCred, Error> {
     let mut scope = get_env_var("SCOPE")?;
     // hack to deal with already urlencoded data so that it isn't encoded twice...
     if (&scope).contains("%3A%2F%2F") {
-        scope = decode(&scope).map_err(|e| Error::UnknownError(e.to_string()))?;
+        scope = decode(&scope).map_err(|e| Error::Unknown(e.to_string()))?;
     }
     Ok(OAuthCred::new(
         scope,
@@ -32,17 +32,16 @@ pub fn get_bearer_token(client: &Client, tenant: &str) -> Result<Token, Error> {
         .post(&url)
         .form(&get_oauth_creds_from_env()?)
         .send()
-        .map_err(|e| Error::UnknownError(format!("Error from OAuth request: {}", e)))?;
+        .map_err(|e| Error::Unknown(format!("Error from OAuth request: {}", e)))?;
     let s = res.status();
-    let t = res.text().map_err(|e| {
-        Error::UnknownError(format!("Error obtaining body of OAuth response: {}", e))
-    })?;
+    let t = res
+        .text()
+        .map_err(|e| Error::Unknown(format!("Error obtaining body of OAuth response: {}", e)))?;
     if s.is_success() {
-        let token: Token = serde_json::from_str(&t).map_err(|e| {
-            Error::UnknownError(format!("Error decoding OAuth API Response: {}", e))
-        })?;
+        let token: Token = serde_json::from_str(&t)
+            .map_err(|e| Error::Unknown(format!("Error decoding OAuth API Response: {}", e)))?;
         if token.get_type() != "Bearer" {
-            Err(Error::UnknownError(format!(
+            Err(Error::Unknown(format!(
                 "Unknown token type: {}",
                 token.get_type()
             )))
@@ -51,6 +50,6 @@ pub fn get_bearer_token(client: &Client, tenant: &str) -> Result<Token, Error> {
         }
     } else {
         // panic!("Received a {} status code from the oauth api");
-        Err(Error::OAuthError(s.as_u16(), t))
+        Err(Error::OAuth(s.as_u16(), t))
     }
 }

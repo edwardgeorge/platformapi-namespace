@@ -159,17 +159,17 @@ impl OAuthCred {
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Environment Error: {0}")]
-    EnvironmentError(String),
+    Environment(String),
     #[error("Error from OAuth API, status code: {0}\n{1}")]
-    OAuthError(u16, String),
+    OAuth(u16, String),
     #[error("Error from Platform API, status code: {0}\n{1}")]
-    APIError(u16, String),
+    Api(u16, String),
     #[error("Timeout calling PlatformAPI")]
-    APITimeoutError,
+    APITimeout,
     #[error("Error in {0} option value '{1}': {2}")]
-    OptionError(String, String, String),
+    Option(String, String, String),
     #[error("{0}")]
-    UnknownError(String),
+    Unknown(String),
 }
 
 // this is used to pretty print our final exceptions

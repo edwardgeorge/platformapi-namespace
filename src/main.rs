@@ -63,14 +63,14 @@ fn match_extra(matches: &ArgMatches<'_>) -> Result<ExtraProps, Error> {
     if let Some(val) = matches.value_of("extra-props") {
         if let Some(filename) = val.strip_prefix('@') {
             let f = std::fs::File::open(filename).map_err(|e| {
-                Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string())
+                Error::Option("extra-data".to_string(), val.to_string(), e.to_string())
             })?;
             serde_yaml::from_reader(f).map_err(|e| {
-                Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string())
+                Error::Option("extra-data".to_string(), val.to_string(), e.to_string())
             })
         } else {
             serde_yaml::from_str(val).map_err(|e| {
-                Error::OptionError("extra-data".to_string(), val.to_string(), e.to_string())
+                Error::Option("extra-data".to_string(), val.to_string(), e.to_string())
             })
         }
     } else {
@@ -92,9 +92,9 @@ fn create(hostname: &str, tenant: &str, payload: NSDef) -> Result<NSResponse, Er
         Ok(r) => r,
         Err(e) => {
             if e.is_timeout() {
-                return Err(Error::APITimeoutError);
+                return Err(Error::APITimeout);
             } else {
-                return Err(Error::UnknownError(format!(
+                return Err(Error::Unknown(format!(
                     "Got an unknown error communicating with the Platform API: {}",
                     e
                 )));
@@ -105,10 +105,10 @@ fn create(hostname: &str, tenant: &str, payload: NSDef) -> Result<NSResponse, Er
     let rtext = resp.text().unwrap();
     if status.is_success() {
         let resp = serde_json::from_str(&rtext)
-            .map_err(|e| Error::UnknownError(format!("Error decoding API Response: {}", e)))?;
+            .map_err(|e| Error::Unknown(format!("Error decoding API Response: {}", e)))?;
         Ok(resp)
     } else {
-        Err(Error::APIError(status.as_u16(), rtext))
+        Err(Error::Api(status.as_u16(), rtext))
     }
 }
 
@@ -209,13 +209,13 @@ fn main() -> Result<(), ExitError> {
         let productkey = crmatch.value_of("productkey").unwrap();
         let mut name = crmatch.value_of("name").unwrap().to_string();
         let ttl = crmatch.value_of("ttl").unwrap();
-        let mut metadata = metadata_from_matches(&crmatch)?;
+        let metadata = metadata_from_matches(crmatch)?;
         let mut strict_strip_prefix = false;
         if name == "-" {
             name = match metadata.name {
                 Some(mname) => mname,
                 None => {
-                    return Err(Error::UnknownError(
+                    return Err(Error::Unknown(
                         "name passed as '-' but no name provided in manifest metadata".to_string(),
                     )
                     .into());
@@ -227,7 +227,7 @@ fn main() -> Result<(), ExitError> {
             if let Some(suffix) = name.strip_prefix(&format!("{}-", productkey)) {
                 name = suffix.to_string();
             } else if strict_strip_prefix {
-                return Err(Error::UnknownError(format!(
+                return Err(Error::Unknown(format!(
                     "Expected that name '{}' is prefixed with product key '{}'",
                     name, productkey
                 ))
@@ -237,11 +237,11 @@ fn main() -> Result<(), ExitError> {
         let hostname: String = option_or_env!(crmatch, "hostname", HOSTNAME_ENV_VAR);
         let cluster: String = option_or_env!(crmatch, "cluster", CLUSTER_ENV_VAR);
         let tenant: String = option_or_env!(crmatch, "tenant", TENANT_ENV_VAR);
-        let vsas = match_vault_service_accounts(&crmatch);
+        let vsas = match_vault_service_accounts(crmatch);
         let extra = match_extra(crmatch)?;
-        let labelscollected: Labels = metadata.labels.drain().map(|a| a.into()).collect();
+        let labelscollected: Labels = metadata.labels.into_iter().map(|a| a.into()).collect();
         let annotationscollected: Annotations =
-            metadata.annotations.drain().map(|a| a.into()).collect();
+            metadata.annotations.into_iter().map(|a| a.into()).collect();
         let payload = NSDefBuilder::default()
             .productkey(productkey)
             .ttl(ttl)
