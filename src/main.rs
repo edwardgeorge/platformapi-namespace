@@ -1,4 +1,5 @@
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use core::time::Duration;
 use klap::{Annotations, Labels};
 use log::info;
 use regex::Regex;
@@ -87,7 +88,12 @@ fn create(hostname: &str, tenant: &str, payload: NSDef) -> Result<NSResponse, Er
         url,
         serde_json::to_string(&payload).unwrap_or_else(|err| format!("error: {:?}", err))
     );
-    let res = client.post(&url).bearer_auth(token).json(&payload).send();
+    let res = client
+        .post(&url)
+        .bearer_auth(token)
+        .json(&payload)
+        .timeout(Duration::from_secs(60))
+        .send();
     let resp = match res {
         Ok(r) => r,
         Err(e) => {
