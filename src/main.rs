@@ -153,7 +153,7 @@ fn main() -> Result<(), ExitError> {
                         .number_of_values(1),
                 )
                 .arg(
-                    Arg::with_name("annotation")
+                    Arg::with_name("annotations")
                         .short("a")
                         .long("annotation")
                         .required(false)
