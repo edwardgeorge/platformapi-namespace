@@ -6,6 +6,7 @@ use regex::Regex;
 use reqwest::blocking::Client;
 use std::collections::HashMap;
 use std::env;
+use std::io::BufReader;
 
 mod auth;
 mod metadata;
@@ -66,7 +67,7 @@ fn match_extra(matches: &ArgMatches<'_>) -> Result<ExtraProps, Error> {
             let f = std::fs::File::open(filename).map_err(|e| {
                 Error::Option("extra-data".to_string(), val.to_string(), e.to_string())
             })?;
-            serde_yaml::from_reader(f).map_err(|e| {
+            serde_yaml::from_reader(BufReader::new(f)).map_err(|e| {
                 Error::Option("extra-data".to_string(), val.to_string(), e.to_string())
             })
         } else {

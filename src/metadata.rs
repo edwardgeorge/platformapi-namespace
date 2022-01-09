@@ -3,6 +3,7 @@ use klap::{annotation_from_str, labels_from_str_either, AnnotationMap, Label, La
 use serde::Deserialize;
 use serde_yaml::{from_reader, from_str};
 use std::fs;
+use std::io::BufReader;
 
 use crate::types::Error;
 
@@ -29,7 +30,7 @@ fn parse_metadata(input: &str) -> Result<Metadata, Error> {
                 v.to_string(),
             )
         })?;
-        from_reader(f)
+        from_reader(BufReader::new(f))
     } else {
         from_str(input)
     };
