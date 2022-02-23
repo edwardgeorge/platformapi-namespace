@@ -89,11 +89,18 @@ fn create(hostname: &str, tenant: &str, payload: NSDef) -> Result<NSResponse, Er
         url,
         serde_json::to_string(&payload).unwrap_or_else(|err| format!("error: {:?}", err))
     );
+    let timeout: Duration = match env::var("PLATFORM_API_TIMEOUT_SECS") {
+        Ok(val) => val
+            .parse()
+            .map(Duration::from_secs)
+            .expect("Could not parse PLATFORM_API_TIMEOUT_SECS as integer"),
+        Err(_) => Duration::from_secs(90),
+    };
     let res = client
         .post(&url)
         .bearer_auth(token)
         .json(&payload)
-        .timeout(Duration::from_secs(60))
+        .timeout(timeout)
         .send();
     let resp = match res {
         Ok(r) => r,
